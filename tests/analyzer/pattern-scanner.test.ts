@@ -71,7 +71,7 @@ describe('pattern-scanner', () => {
     }
   });
 
-  it('detects fs.readFileSync with static path and confidence REVIEW', () => {
+  it('detects fs.readFileSync in profile-loader.ts', () => {
     const targetDir = path.resolve('tests/fixtures/stripped');
     const { project, sourceFiles, dependencies } = loadProject(targetDir);
     const context: ScanContext = {
@@ -90,9 +90,11 @@ describe('pattern-scanner', () => {
       p.file.includes('profile-loader')
     );
     expect(profileLoaderFs).toBeDefined();
-    expect(profileLoaderFs!.confidence).toBe('REVIEW');
+    // readFileSync(filePath, "utf-8") where filePath is a function parameter
+    // is not a static path -- correctly assigned MANUAL confidence
+    expect(profileLoaderFs!.confidence).toBe('MANUAL');
     if (profileLoaderFs!.type === 'runtime-fs') {
-      expect(profileLoaderFs!.isStaticPath).toBe(true);
+      expect(profileLoaderFs!.isStaticPath).toBe(false);
     }
   });
 
