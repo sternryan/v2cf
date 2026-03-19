@@ -4,6 +4,8 @@ import type { CliOptions } from '../types/index.js';
 import { analyze } from '../analyzer/index.js';
 import { formatReport } from '../report/formatter.js';
 import { writeJsonReport } from '../report/json-writer.js';
+import { applyTransforms } from '../transformer/index.js';
+import { formatTransformReport } from '../transformer/report.js';
 
 export function registerGoCommand(program: Command): void {
   program
@@ -25,9 +27,13 @@ export function registerGoCommand(program: Command): void {
         formatReport(model);
       }
 
+      // Step 2: Transform
+      const { results, manualPatterns } = await applyTransforms(model, {
+        dryRun: false,
+      });
+      formatTransformReport(results, manualPatterns);
+
       // Future pipeline steps
-      console.log(
-        'Transform, deploy, and sync steps coming in future phases.\n'
-      );
+      console.log('Deploy and sync steps coming in future phases.\n');
     });
 }

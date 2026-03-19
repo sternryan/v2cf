@@ -27,4 +27,13 @@ describe('v2cf CLI', () => {
     expect(output).toContain('project-dir');
     expect(output).toContain('full v2cf pipeline');
   });
+
+  it('transform command shows help', () => {
+    const output = execSync('npx tsx src/cli.ts transform --help', {
+      encoding: 'utf-8',
+      cwd: process.cwd(),
+    }).trim();
+    expect(output).toContain('project-dir');
+    expect(output).toContain('dry-run');
+  });
 });

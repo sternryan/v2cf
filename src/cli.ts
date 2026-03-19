@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import { registerAnalyzeCommand } from './commands/analyze.js';
 import { registerGoCommand } from './commands/go.js';
+import { registerTransformCommand } from './commands/transform.js';
 
 const program = new Command();
 
@@ -13,6 +14,7 @@ program
   .option('--json', 'Output as JSON instead of terminal formatting');
 
 registerAnalyzeCommand(program);
+registerTransformCommand(program);
 registerGoCommand(program);
 
 program.parse();

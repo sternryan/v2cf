@@ -185,6 +185,76 @@ describe('transform pipeline', () => {
   });
 });
 
+describe('end-to-end pipeline integration', () => {
+  it('applies all transforms to stripped-like patterns in a single pipeline run', async () => {
+    const project = createTestProject({
+      '/test/app/api/chat/route.ts': `export const maxDuration = 30;
+
+import { streamText } from 'ai';
+import { headers } from 'next/headers';
+
+export async function POST(req: Request) {
+  const headersList = headers();
+  const ip = headersList.get("x-forwarded-for")?.split(",")[0] || "unknown";
+
+  const result = await streamText({
+    model: anthropic('claude-sonnet-4-6'),
+    messages,
+    onFinish: async ({ text }) => {
+      await appendMessage(convId, { role: 'assistant', content: text });
+    },
+  });
+}
+`,
+      '/test/lib/profile-loader.ts': `import fs from "fs";
+
+function load() {
+  const raw = fs.readFileSync(filePath, "utf-8");
+  return raw;
+}
+`,
+    });
+
+    const patterns: DetectedPattern[] = [
+      // XFRM-01: maxDuration
+      { type: 'max-duration', value: 30, file: '/test/app/api/chat/route.ts', line: 1, confidence: 'AUTO' },
+      // XFRM-03: IP header
+      { type: 'ip-header', headerName: 'x-forwarded-for', file: '/test/app/api/chat/route.ts', line: 8, confidence: 'AUTO' },
+      // XFRM-07: streaming callback
+      { type: 'streaming-callback', callbackName: 'onFinish', file: '/test/app/api/chat/route.ts', line: 14, confidence: 'REVIEW' },
+      // XFRM-06: fs.readFileSync (MANUAL -- should be flagged not transformed)
+      { type: 'runtime-fs', method: 'readFileSync', pathExpression: 'filePath', isStaticPath: false, file: '/test/lib/profile-loader.ts', line: 4, confidence: 'MANUAL' },
+    ];
+
+    const model = makeModel(patterns);
+    const { results, manualPatterns } = await applyTransforms(model, {
+      dryRun: true,
+      project,
+    });
+
+    // Verify XFRM-01: maxDuration removed
+    const routeText = project.getSourceFileOrThrow('/test/app/api/chat/route.ts').getFullText();
+    expect(routeText).not.toContain('export const maxDuration');
+    expect(routeText).toContain('v2cf: Removed maxDuration');
+
+    // Verify XFRM-03: IP header adapted
+    expect(routeText).toContain('getClientIp');
+
+    // Verify XFRM-07: streaming callback wrapped
+    expect(routeText).toContain('getCloudflareContext');
+    expect(routeText).toContain('ctx.waitUntil');
+
+    // Verify MANUAL patterns are collected but not transformed by the pipeline
+    // (fs-flagger handles MANUAL confidence itself, but pipeline filters MANUAL out)
+    expect(manualPatterns).toHaveLength(1);
+    expect(manualPatterns[0].type).toBe('runtime-fs');
+
+    // At least some results were applied
+    const appliedResults = results.filter((r) => r.applied);
+    expect(appliedResults.length).toBeGreaterThan(0);
+  });
+});
+
 describe('formatTransformReport', () => {
   it('separates applied changes from flagged manual items', () => {
     const results: TransformResult[] = [
