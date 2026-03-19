@@ -244,14 +244,75 @@ function load() {
     expect(routeText).toContain('getCloudflareContext');
     expect(routeText).toContain('ctx.waitUntil');
 
-    // Verify MANUAL patterns are collected but not transformed by the pipeline
-    // (fs-flagger handles MANUAL confidence itself, but pipeline filters MANUAL out)
+    // Verify MANUAL patterns are still collected for the report
     expect(manualPatterns).toHaveLength(1);
     expect(manualPatterns[0].type).toBe('runtime-fs');
+
+    // Verify XFRM-06: fsFlagger receives MANUAL runtime-fs patterns via handlesManual
+    const profileText = project.getSourceFileOrThrow('/test/lib/profile-loader.ts').getFullText();
+    expect(profileText).toContain('V2CF_MANUAL');
 
     // At least some results were applied
     const appliedResults = results.filter((r) => r.applied);
     expect(appliedResults.length).toBeGreaterThan(0);
+  });
+
+  it('handlesManual transforms receive MANUAL-confidence patterns', async () => {
+    const manualTransformFn = vi.fn().mockReturnValue({
+      ruleId: 'manual-handler',
+      applied: true,
+      filesModified: [],
+      filesGenerated: [],
+      changes: [],
+      warnings: [],
+    });
+
+    const nonManualTransformFn = vi.fn().mockReturnValue({
+      ruleId: 'non-manual-handler',
+      applied: true,
+      filesModified: [],
+      filesGenerated: [],
+      changes: [],
+      warnings: [],
+    });
+
+    const manualRule: TransformRule = {
+      id: 'manual-handler',
+      name: 'Manual Handler',
+      description: 'handles manual patterns',
+      appliesTo: ['max-duration'],
+      dependencies: [],
+      handlesManual: true,
+      transform: manualTransformFn,
+    };
+
+    const nonManualRule: TransformRule = {
+      id: 'non-manual-handler',
+      name: 'Non-Manual Handler',
+      description: 'does not handle manual patterns',
+      appliesTo: ['max-duration'],
+      dependencies: [],
+      transform: nonManualTransformFn,
+    };
+
+    const model = makeModel([
+      { type: 'max-duration', value: 60, file: '/test/route.ts', line: 1, confidence: 'MANUAL' },
+    ]);
+
+    const project = createTestProject({
+      '/test/route.ts': 'export const maxDuration = 60;',
+    });
+
+    await applyTransforms(model, {
+      dryRun: true,
+      transforms: [manualRule, nonManualRule],
+      project,
+    });
+
+    // handlesManual rule should be called for MANUAL patterns
+    expect(manualTransformFn).toHaveBeenCalledTimes(1);
+    // non-handlesManual rule should NOT be called for MANUAL patterns
+    expect(nonManualTransformFn).toHaveBeenCalledTimes(0);
   });
 });
 

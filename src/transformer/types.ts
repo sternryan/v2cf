@@ -32,6 +32,8 @@ export interface TransformRule {
   appliesTo: DetectedPattern['type'][];
   /** IDs of rules that must run before this one */
   dependencies: string[];
+  /** If true, this transform also receives MANUAL-confidence patterns (e.g., for flagging, not auto-transforming). */
+  handlesManual?: boolean;
   /**
    * Apply transform for a single detected pattern.
    * Called once per matching pattern from the analysis.

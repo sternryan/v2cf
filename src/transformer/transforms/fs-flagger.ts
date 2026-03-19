@@ -29,6 +29,7 @@ export const fsFlagger: TransformRule = {
     'Inserts V2CF_MANUAL warning comments above runtime fs.readFileSync calls',
   appliesTo: ['runtime-fs'],
   dependencies: [],
+  handlesManual: true,
 
   transform(
     sourceFile: SourceFile,

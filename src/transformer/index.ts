@@ -45,7 +45,8 @@ export async function applyTransforms(
   for (const rule of ruleSet) {
     // Find patterns this rule handles, excluding MANUAL confidence
     const matchingPatterns = model.patterns.filter(
-      (p) => rule.appliesTo.includes(p.type) && p.confidence !== 'MANUAL'
+      (p) => rule.appliesTo.includes(p.type) &&
+        (p.confidence !== 'MANUAL' || rule.handlesManual === true)
     );
 
     for (const pattern of matchingPatterns) {
