@@ -4,6 +4,7 @@ import { importRewriter } from './import-rewriter.js';
 import { headerAdapter } from './header-adapter.js';
 import { fsFlagger } from './fs-flagger.js';
 import { streamingWrapper } from './streaming-wrapper.js';
+import { kvRewriter } from './kv-to-d1/kv-rewriter.js';
 
 export const transforms: TransformRule[] = [
   directiveCleaner,
@@ -11,4 +12,5 @@ export const transforms: TransformRule[] = [
   headerAdapter,
   fsFlagger,
   streamingWrapper,
+  kvRewriter,
 ];
