@@ -25,17 +25,23 @@ describe('adapter-template', () => {
     expect(template).not.toMatch(/^const db\s*=/m);
   });
 
-  it('get method includes expires_at check with delete for expired keys', () => {
+  it('get method includes expires_at check with delete for expired keys (lazy TTL)', () => {
     expect(template).toContain('expires_at');
     expect(template).toContain('DELETE FROM kv_store WHERE key = ?');
+    // Lazy TTL: compare against current time
+    expect(template).toContain('Date.now() / 1000');
   });
 
   it('set method accepts options parameter with ex property', () => {
     expect(template).toMatch(/options\??\.\s*ex/);
   });
 
-  it('set method computes expires_at from ex seconds', () => {
-    expect(template).toContain('Date.now() / 1000');
+  it('set method computes expires_at from Date.now() / 1000 + options.ex', () => {
+    expect(template).toContain('Date.now() / 1000 + options.ex');
+  });
+
+  it('set method uses INSERT OR REPLACE for upsert semantics', () => {
+    expect(template).toContain('INSERT OR REPLACE INTO kv_store');
   });
 
   it('del method generates DELETE FROM kv_store WHERE key = ?', () => {
@@ -65,5 +71,36 @@ describe('adapter-template', () => {
 
   it('expire method updates expires_at on kv_store', () => {
     expect(template).toContain('UPDATE kv_store SET expires_at');
+  });
+
+  it('uses only positional ? binding (no named params)', () => {
+    // D1 does not support named parameters like $key
+    expect(template).not.toMatch(/\$\w+/);
+    // All SQL bindings use ?
+    expect(template).toContain('.bind(');
+  });
+
+  it('includes TTL cleanup guidance comment', () => {
+    expect(template).toContain('TTL Cleanup');
+    expect(template).toContain('Cron Trigger');
+  });
+
+  it('template contains all 7 d1kv methods', () => {
+    // Verify each method is present as an async method on d1kv
+    expect(template).toContain('async get');
+    expect(template).toContain('async set');
+    expect(template).toContain('async del');
+    expect(template).toContain('async incr');
+    expect(template).toContain('async lpush');
+    expect(template).toContain('async lrange');
+    expect(template).toContain('async expire');
+  });
+
+  it('is importable via barrel index', async () => {
+    const { getAdapterTemplate: fromIndex } = await import(
+      '../../../src/transformer/transforms/kv-to-d1/index.js'
+    );
+    expect(typeof fromIndex).toBe('function');
+    expect(fromIndex()).toBe(template);
   });
 });
