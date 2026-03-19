@@ -1,10 +1,13 @@
 import { Command } from 'commander';
 import path from 'path';
 import type { CliOptions } from '../types/index.js';
+import type { TransformContext } from '../transformer/types.js';
 import { analyze } from '../analyzer/index.js';
+import { loadProject } from '../analyzer/project-loader.js';
 import { formatReport } from '../report/formatter.js';
 import { writeJsonReport } from '../report/json-writer.js';
 import { applyTransforms } from '../transformer/index.js';
+import { generateImageLoader } from '../transformer/transforms/image-loader-gen.js';
 import { formatTransformReport } from '../transformer/report.js';
 
 export function registerGoCommand(program: Command): void {
@@ -31,6 +34,28 @@ export function registerGoCommand(program: Command): void {
       const { results, manualPatterns } = await applyTransforms(model, {
         dryRun: false,
       });
+
+      // XFRM-04: Generate image loader if project uses next/image
+      const { project } = loadProject(resolvedDir);
+      const usesNextImage = project.getSourceFiles().some((sf) =>
+        sf.getImportDeclarations().some((imp) =>
+          imp.getModuleSpecifierValue() === 'next/image'
+        )
+      );
+      if (usesNextImage) {
+        const imageContext: TransformContext = {
+          project,
+          projectDir: resolvedDir,
+          model,
+          dryRun: false,
+        };
+        const imageResult = generateImageLoader(imageContext);
+        if (imageResult.applied) {
+          results.push(imageResult);
+          await project.save();
+        }
+      }
+
       formatTransformReport(results, manualPatterns);
 
       // Future pipeline steps

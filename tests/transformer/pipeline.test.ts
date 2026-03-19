@@ -10,6 +10,7 @@ import type { SourceFile } from 'ts-morph';
 import type { ProjectModel, DetectedPattern } from '../../src/schemas/project-model.js';
 import type { TransformRule, TransformResult, TransformContext } from '../../src/transformer/types.js';
 import { applyTransforms } from '../../src/transformer/index.js';
+import { generateImageLoader } from '../../src/transformer/transforms/image-loader-gen.js';
 import { formatTransformReport } from '../../src/transformer/report.js';
 
 function createTestProject(files: Record<string, string>): Project {
@@ -313,6 +314,39 @@ function load() {
     expect(manualTransformFn).toHaveBeenCalledTimes(1);
     // non-handlesManual rule should NOT be called for MANUAL patterns
     expect(nonManualTransformFn).toHaveBeenCalledTimes(0);
+  });
+});
+
+describe('generateImageLoader integration', () => {
+  it('generates image-loader.ts when called with a project context', () => {
+    const project = createTestProject({
+      '/test/app/page.tsx': `import Image from 'next/image';
+export default function Page() { return <Image src="/photo.jpg" width={100} height={100} />; }
+`,
+      '/test/next.config.ts': `const nextConfig = {};
+export default nextConfig;
+`,
+    });
+
+    const model = makeModel([], '/test');
+    const context: TransformContext = {
+      project,
+      projectDir: '/test',
+      model,
+      dryRun: false,
+    };
+
+    const result = generateImageLoader(context);
+
+    expect(result.applied).toBe(true);
+    expect(result.filesGenerated).toContain('image-loader.ts');
+
+    const loaderFile = project.getSourceFile('/test/image-loader.ts');
+    expect(loaderFile).toBeDefined();
+    expect(loaderFile!.getFullText()).toContain('cloudflareLoader');
+
+    const configFile = project.getSourceFileOrThrow('/test/next.config.ts');
+    expect(configFile.getFullText()).toContain('loaderFile');
   });
 });
 
