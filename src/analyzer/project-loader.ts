@@ -3,7 +3,7 @@ import {
   ScriptTarget,
   ModuleKind,
   ModuleResolutionKind,
-  JsxEmit,
+  ts,
 } from 'ts-morph';
 import type { SourceFile } from 'ts-morph';
 import path from 'path';
@@ -33,7 +33,7 @@ export function loadProject(targetDir: string): {
             target: ScriptTarget.ES2022,
             module: ModuleKind.ESNext,
             moduleResolution: ModuleResolutionKind.Bundler,
-            jsx: JsxEmit.ReactJSX,
+            jsx: ts.JsxEmit.ReactJSX,
             strict: true,
             esModuleInterop: true,
             allowJs: true,
