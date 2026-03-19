@@ -1,0 +1,131 @@
+/**
+ * XFRM-05: D1 Adapter Template
+ *
+ * Returns a TypeScript template string for the D1 adapter module that wraps
+ * Cloudflare D1 behind a Redis-compatible API. The generated module exports
+ * a `d1kv` object with methods: get, set, del, incr, lpush, lrange, expire.
+ *
+ * This is a pure template -- no AST logic. The kv-rewriter (Plan 02)
+ * generates this file in the target project via context.project.createSourceFile().
+ */
+
+/**
+ * Returns the full TypeScript source code for the D1 adapter module.
+ * The template follows the same pattern as IMAGE_LOADER_TEMPLATE in image-loader-gen.ts.
+ */
+export function getAdapterTemplate(): string {
+  return `import { getCloudflareContext } from "@opennextjs/cloudflare";
+
+function getDb(): D1Database {
+  const { env } = getCloudflareContext();
+  return env.DB;
+}
+
+export const d1kv = {
+  async get<T = unknown>(key: string): Promise<T | null> {
+    const db = getDb();
+    const row = await db
+      .prepare("SELECT value, expires_at FROM kv_store WHERE key = ?")
+      .bind(key)
+      .first<{ value: string; expires_at: number | null }>();
+    if (!row) return null;
+    // Lazy TTL: check expires_at and return null + delete if expired
+    if (row.expires_at && row.expires_at < Date.now() / 1000) {
+      await db.prepare("DELETE FROM kv_store WHERE key = ?").bind(key).run();
+      return null;
+    }
+    return JSON.parse(row.value) as T;
+  },
+
+  async set(key: string, value: unknown, options?: { ex?: number }): Promise<void> {
+    const db = getDb();
+    const serialized = JSON.stringify(value);
+    const expiresAt = options?.ex
+      ? Date.now() / 1000 + options.ex
+      : null;
+    await db
+      .prepare(
+        "INSERT OR REPLACE INTO kv_store (key, value, expires_at) VALUES (?, ?, ?)"
+      )
+      .bind(key, serialized, expiresAt)
+      .run();
+  },
+
+  async del(key: string): Promise<void> {
+    const db = getDb();
+    await db.prepare("DELETE FROM kv_store WHERE key = ?").bind(key).run();
+  },
+
+  async incr(key: string): Promise<number> {
+    const db = getDb();
+    // Atomic increment via UPSERT
+    await db
+      .prepare(
+        \`INSERT INTO kv_store (key, value, expires_at)
+         VALUES (?, '1', NULL)
+         ON CONFLICT(key) DO UPDATE SET value = CAST(CAST(value AS INTEGER) + 1 AS TEXT)\`
+      )
+      .bind(key)
+      .run();
+    const row = await db
+      .prepare("SELECT value FROM kv_store WHERE key = ?")
+      .bind(key)
+      .first<{ value: string }>();
+    return parseInt(row!.value, 10);
+  },
+
+  async lpush(key: string, ...values: unknown[]): Promise<number> {
+    const db = getDb();
+    const stmts = values.map((v) =>
+      db
+        .prepare(
+          \`INSERT INTO kv_list (key, value, position)
+           VALUES (?, ?, COALESCE((SELECT MAX(position) FROM kv_list WHERE key = ?), -1) + 1)\`
+        )
+        .bind(key, JSON.stringify(v), key)
+    );
+    await db.batch(stmts);
+    const count = await db
+      .prepare("SELECT COUNT(*) as cnt FROM kv_list WHERE key = ?")
+      .bind(key)
+      .first<{ cnt: number }>();
+    return count!.cnt;
+  },
+
+  async lrange(key: string, start: number, stop: number): Promise<unknown[]> {
+    const db = getDb();
+    // Redis lrange: stop is inclusive, -1 means end
+    // Order by position DESC to match Redis lpush-then-lrange (newest first) semantics
+    const limit = stop === -1 ? 999999 : stop - start + 1;
+    const rows = await db
+      .prepare(
+        "SELECT value FROM kv_list WHERE key = ? ORDER BY position DESC LIMIT ? OFFSET ?"
+      )
+      .bind(key, limit, start)
+      .all<{ value: string }>();
+    return rows.results.map((r) => JSON.parse(r.value));
+  },
+
+  async expire(key: string, seconds: number): Promise<void> {
+    const db = getDb();
+    const expiresAt = Date.now() / 1000 + seconds;
+    await db
+      .prepare("UPDATE kv_store SET expires_at = ? WHERE key = ?")
+      .bind(expiresAt, key)
+      .run();
+  },
+};
+
+/*
+ * TTL Cleanup Guidance
+ * --------------------
+ * The adapter uses lazy TTL (check at read time in get()). Expired rows
+ * accumulate over time. To periodically purge stale rows, set up a
+ * Cloudflare Cron Trigger that runs:
+ *
+ *   DELETE FROM kv_store WHERE expires_at IS NOT NULL AND expires_at < unixepoch('now');
+ *
+ * See: https://developers.cloudflare.com/workers/configuration/cron-triggers/
+ */
+`;
+}
