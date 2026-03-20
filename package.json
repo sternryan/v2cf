@@ -27,7 +27,12 @@
   "devDependencies": {
     "@types/deep-diff": "^1.0.5",
     "@types/node": "^22",
+    "@types/pngjs": "^6.0.5",
+    "deep-diff": "^1.0.2",
+    "diff2html": "^3.4.56",
+    "pixelmatch": "^7.1.0",
     "playwright": "^1.58.2",
+    "pngjs": "^7.0.0",
     "tsup": "^8.5.1",
     "tsx": "^4.21.0",
     "typescript": "^5.8.0",
