@@ -1,0 +1,90 @@
+{
+  "sessionId": "sess_test_001",
+  "captureVersion": 1,
+  "startTime": 1710864000000,
+  "endTime": 1710864005000,
+  "sourceUrl": "https://stripped-ten.vercel.app",
+  "rrwebEvents": [
+    {
+      "type": 2,
+      "data": {
+        "node": {
+          "type": 0,
+          "childNodes": [
+            {
+              "type": 1,
+              "name": "html",
+              "publicId": "",
+              "systemId": ""
+            }
+          ]
+        },
+        "initialOffset": { "top": 0, "left": 0 }
+      },
+      "timestamp": 1710864000100
+    },
+    {
+      "type": 3,
+      "data": {
+        "source": 2,
+        "type": 2,
+        "id": 42,
+        "x": 512,
+        "y": 384,
+        "pointerType": 0
+      },
+      "timestamp": 1710864001500
+    },
+    {
+      "type": 3,
+      "data": {
+        "source": 5,
+        "id": 55,
+        "text": "Hello, can you help me?",
+        "isChecked": false
+      },
+      "timestamp": 1710864002000
+    }
+  ],
+  "networkEvents": [
+    {
+      "timestamp": 1710864001000,
+      "method": "GET",
+      "url": "https://stripped-ten.vercel.app/api/health",
+      "requestBody": null,
+      "requestHeaders": {
+        "accept": "application/json"
+      },
+      "status": 200,
+      "responseHeaders": {
+        "content-type": "application/json"
+      },
+      "responseBody": "{\"status\":\"ok\"}",
+      "duration": 42,
+      "isLlmEndpoint": false
+    },
+    {
+      "timestamp": 1710864003000,
+      "method": "POST",
+      "url": "https://stripped-ten.vercel.app/api/chat",
+      "requestBody": "{\"messages\":[{\"role\":\"user\",\"content\":\"Hello, can you help me?\"}]}",
+      "requestHeaders": {
+        "content-type": "application/json",
+        "accept": "*/*"
+      },
+      "status": 200,
+      "responseHeaders": {
+        "content-type": "text/plain; charset=utf-8",
+        "x-vercel-cache": "MISS"
+      },
+      "responseBody": "0:\"Hello \"\n0:\"world\"\n0:\"! How \"\n0:\"can I \"\n0:\"help you \"\n0:\"today?\"\ne:{\"finishReason\":\"stop\",\"usage\":{\"promptTokens\":12,\"completionTokens\":8}}",
+      "duration": 1200,
+      "isLlmEndpoint": true
+    }
+  ],
+  "metadata": {
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+    "viewport": { "width": 1280, "height": 720 },
+    "recordingDuration": 5000
+  }
+}
