@@ -16,8 +16,9 @@
 export function getAdapterTemplate(): string {
   return `import { getCloudflareContext } from "@opennextjs/cloudflare";
 
-function getDb(): D1Database {
-  const { env } = getCloudflareContext();
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function getDb(): any {
+  const { env } = getCloudflareContext() as any;
   return env.DB;
 }
 
