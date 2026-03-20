@@ -115,7 +115,7 @@ export class WranglerRunner {
   async build(): Promise<void> {
     await execa(
       'npx',
-      ['opennextjs-cloudflare', 'build'],
+      ['opennextjs-cloudflare', 'build', '--dangerouslyUseUnsupportedNextVersion'],
       { ...this.execaOptions, stdio: 'inherit' }
     );
   }

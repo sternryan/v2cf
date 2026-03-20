@@ -115,11 +115,11 @@ describe('WranglerRunner', () => {
   });
 
   describe('build', () => {
-    it('calls execa with correct args', async () => {
+    it('calls execa with correct args including unsupported version flag', async () => {
       await runner.build();
       expect(mockedExeca).toHaveBeenCalledWith(
         'npx',
-        ['opennextjs-cloudflare', 'build'],
+        ['opennextjs-cloudflare', 'build', '--dangerouslyUseUnsupportedNextVersion'],
         expect.objectContaining({
           cwd: '/test/project',
         })
