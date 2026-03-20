@@ -119,30 +119,16 @@ export const headerAdapter: TransformRule = {
         initText.includes(".get('x-forwarded-for')")
       ) {
         // Extract the headers variable name (the object before .get)
-        const callExprs = initializer.getDescendantsOfKind(
-          SyntaxKind.CallExpression
-        );
         let headersVarName = 'headers';
-
-        for (const call of callExprs) {
-          const callText = call.getText();
-          if (
-            callText.includes('.get("x-forwarded-for")') ||
-            callText.includes(".get('x-forwarded-for')")
-          ) {
-            // Get the expression before .get
-            const propAccess = call.getFirstDescendantByKind(
-              SyntaxKind.PropertyAccessExpression
-            );
-            if (propAccess) {
-              const expr = propAccess.getExpression();
-              headersVarName = expr.getText();
-            }
-            break;
-          }
+        const varMatch = initText.match(
+          /(\w+)\.get\(["']x-forwarded-for["']\)/
+        );
+        if (varMatch) {
+          headersVarName = varMatch[1];
         }
 
         // Replace the entire initializer with getClientIp(headersVarName)
+        // Pass the Headers object itself, not .get() result — getClientIp reads multiple headers
         initializer.replaceWithText(`getClientIp(${headersVarName})`);
         rewritten = true;
 
