@@ -36,23 +36,46 @@ export class WranglerRunner {
     return match[1];
   }
 
-  /** Create a D1 database and return its UUID. */
+  /** Create a D1 database and return its UUID. Reuses existing if name matches. */
   async d1Create(name: string): Promise<{ uuid: string; name: string }> {
+    try {
+      const result = await execa(
+        'npx',
+        ['wrangler', 'd1', 'create', name],
+        { ...this.execaOptions, stdio: 'pipe' }
+      );
+      // wrangler d1 create outputs database_id in either TOML or JSON format
+      const uuidMatch = result.stdout.match(
+        /database_id["\s:=]+["']?([a-f0-9-]{36})["']?/
+      );
+      if (!uuidMatch) {
+        throw new Error(
+          `D1 database creation succeeded but could not parse UUID from output:\n${result.stdout}`
+        );
+      }
+      return { uuid: uuidMatch[1], name };
+    } catch (err) {
+      // If database already exists, look up its UUID
+      if (err instanceof Error && err.message.includes('already exists')) {
+        return this.d1GetByName(name);
+      }
+      throw err;
+    }
+  }
+
+  /** Look up an existing D1 database by name. */
+  private async d1GetByName(name: string): Promise<{ uuid: string; name: string }> {
     const result = await execa(
       'npx',
-      ['wrangler', 'd1', 'create', name],
+      ['wrangler', 'd1', 'list', '--json'],
       { ...this.execaOptions, stdio: 'pipe' }
     );
-    // wrangler d1 create outputs database_id in either TOML or JSON format
-    const uuidMatch = result.stdout.match(
-      /database_id["\s:=]+["']?([a-f0-9-]{36})["']?/
-    );
-    if (!uuidMatch) {
-      throw new Error(
-        `D1 database creation succeeded but could not parse UUID from output:\n${result.stdout}`
-      );
+    const databases = JSON.parse(result.stdout) as Array<{ uuid: string; name: string }>;
+    const db = databases.find((d) => d.name === name);
+    if (!db) {
+      throw new Error(`D1 database "${name}" not found despite "already exists" error.`);
     }
-    return { uuid: uuidMatch[1], name };
+    return { uuid: db.uuid, name: db.name };
   }
 
   async d1Execute(databaseName: string, sqlFile: string): Promise<void> {
