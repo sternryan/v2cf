@@ -14,9 +14,9 @@
  * The template follows the same pattern as IMAGE_LOADER_TEMPLATE in image-loader-gen.ts.
  */
 export function getAdapterTemplate(): string {
-  return `import { getCloudflareContext } from "@opennextjs/cloudflare";
+  return `/* eslint-disable @typescript-eslint/no-explicit-any */
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function getDb(): any {
   const { env } = getCloudflareContext() as any;
   return env.DB;
