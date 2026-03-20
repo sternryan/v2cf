@@ -6,6 +6,7 @@ vi.mock('execa', () => ({
 
 import { execa } from 'execa';
 import {
+  ensureCleanTree,
   createMigrationBranch,
   commitChanges,
 } from '../../src/orchestrator/git-branch.js';
@@ -17,23 +18,17 @@ describe('git-branch', () => {
     vi.clearAllMocks();
   });
 
-  describe('createMigrationBranch', () => {
-    it('runs git status --porcelain then git checkout -b v2cf/migrate', async () => {
+  describe('ensureCleanTree', () => {
+    it('passes silently when working tree is clean', async () => {
       mockedExeca.mockResolvedValue({ stdout: '', stderr: '' } as any);
 
-      const branch = await createMigrationBranch('/test/project');
+      await ensureCleanTree('/test/project');
 
       expect(mockedExeca).toHaveBeenCalledWith(
         'git',
         ['status', '--porcelain'],
         { cwd: '/test/project' }
       );
-      expect(mockedExeca).toHaveBeenCalledWith(
-        'git',
-        ['checkout', '-b', 'v2cf/migrate'],
-        { cwd: '/test/project' }
-      );
-      expect(branch).toBe('v2cf/migrate');
     });
 
     it('throws if working tree is dirty', async () => {
@@ -42,12 +37,24 @@ describe('git-branch', () => {
         stderr: '',
       } as any);
 
-      await expect(createMigrationBranch('/test/project')).rejects.toThrow(
+      await expect(ensureCleanTree('/test/project')).rejects.toThrow(
         'Working tree is not clean'
       );
+    });
+  });
 
-      // Should NOT have called checkout
-      expect(mockedExeca).toHaveBeenCalledTimes(1);
+  describe('createMigrationBranch', () => {
+    it('runs git checkout -b v2cf/migrate and returns branch name', async () => {
+      mockedExeca.mockResolvedValue({ stdout: '', stderr: '' } as any);
+
+      const branch = await createMigrationBranch('/test/project');
+
+      expect(mockedExeca).toHaveBeenCalledWith(
+        'git',
+        ['checkout', '-b', 'v2cf/migrate'],
+        { cwd: '/test/project' }
+      );
+      expect(branch).toBe('v2cf/migrate');
     });
   });
 

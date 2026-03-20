@@ -37,6 +37,7 @@ vi.mock('../../src/orchestrator/infra/domain-configurator.js', () => ({
 }));
 
 vi.mock('../../src/orchestrator/git-branch.js', () => ({
+  ensureCleanTree: vi.fn(),
   createMigrationBranch: vi.fn(),
   commitChanges: vi.fn(),
 }));
@@ -71,7 +72,7 @@ import { createD1Database, runMigration } from '../../src/orchestrator/infra/d1-
 import { pushSecrets } from '../../src/orchestrator/infra/secret-pusher.js';
 import { buildAndDeploy } from '../../src/orchestrator/infra/deployer.js';
 import { resolveZone, configureDomain, isDomainConfigAvailable } from '../../src/orchestrator/infra/domain-configurator.js';
-import { createMigrationBranch, commitChanges } from '../../src/orchestrator/git-branch.js';
+import { ensureCleanTree, createMigrationBranch, commitChanges } from '../../src/orchestrator/git-branch.js';
 import { generateOpenNextConfig } from '../../src/orchestrator/config-gen/opennext-config.js';
 import { generateWranglerConfig } from '../../src/orchestrator/config-gen/wrangler-config.js';
 import { generatePackageScriptUpdates } from '../../src/orchestrator/config-gen/package-scripts.js';
