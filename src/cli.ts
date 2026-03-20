@@ -1,5 +1,6 @@
 import { Command } from 'commander';
 import { registerAnalyzeCommand } from './commands/analyze.js';
+import { registerDeployCommand } from './commands/deploy.js';
 import { registerGoCommand } from './commands/go.js';
 import { registerTransformCommand } from './commands/transform.js';
 
@@ -15,6 +16,7 @@ program
 
 registerAnalyzeCommand(program);
 registerTransformCommand(program);
+registerDeployCommand(program);
 registerGoCommand(program);
 
 program.parse();

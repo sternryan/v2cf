@@ -1,7 +1,9 @@
 import { Command } from 'commander';
 import path from 'path';
+import chalk from 'chalk';
 import type { CliOptions } from '../types/index.js';
 import type { TransformContext } from '../transformer/types.js';
+import type { DeployResult } from '../orchestrator/types.js';
 import { analyze } from '../analyzer/index.js';
 import { loadProject } from '../analyzer/project-loader.js';
 import { formatReport } from '../report/formatter.js';
@@ -9,6 +11,7 @@ import { writeJsonReport } from '../report/json-writer.js';
 import { applyTransforms } from '../transformer/index.js';
 import { generateImageLoader } from '../transformer/transforms/image-loader-gen.js';
 import { formatTransformReport } from '../transformer/report.js';
+import { runDeployPipeline } from '../orchestrator/index.js';
 
 export function registerGoCommand(program: Command): void {
   program
@@ -17,7 +20,16 @@ export function registerGoCommand(program: Command): void {
       'Run the full v2cf pipeline (analyze -> transform -> deploy -> sync)'
     )
     .argument('<project-dir>', 'Path to the Next.js project directory')
-    .action(async (projectDir: string) => {
+    .option(
+      '--worker-name <name>',
+      'Cloudflare Worker name (defaults to directory name)'
+    )
+    .option(
+      '--subdomain <domain>',
+      'Custom subdomain to configure (e.g., cf.quartermint.com)'
+    )
+    .option('--skip-deploy', 'Run analyze and transform only, skip deployment')
+    .action(async (projectDir: string, cmdOpts: { workerName?: string; subdomain?: string; skipDeploy?: boolean }) => {
       const opts = program.opts<CliOptions>();
       const resolvedDir = path.resolve(projectDir);
 
@@ -58,7 +70,24 @@ export function registerGoCommand(program: Command): void {
 
       formatTransformReport(results, manualPatterns);
 
-      // Future pipeline steps
-      console.log('Deploy and sync steps coming in future phases.\n');
+      // Step 3: Deploy to Cloudflare
+      if (!cmdOpts.skipDeploy) {
+        const workerName = cmdOpts.workerName || path.basename(resolvedDir);
+        console.log('\n--- Step 3: Deploy to Cloudflare ---\n');
+        const result: DeployResult = await runDeployPipeline({
+          projectDir: resolvedDir,
+          workerName,
+          subdomain: cmdOpts.subdomain,
+        });
+        console.log(chalk.green('\u2714 Deployed successfully!'));
+        console.log('Worker URL: ' + result.workerUrl);
+        if (result.customDomain) {
+          console.log('Custom domain: https://' + result.customDomain);
+        }
+        console.log('D1 Database: ' + result.d1DatabaseId);
+        console.log('Secrets pushed: ' + result.secretsCount);
+      } else {
+        console.log('\nDeploy skipped (--skip-deploy flag).\n');
+      }
     });
 }
