@@ -12,6 +12,7 @@ import { applyTransforms } from '../transformer/index.js';
 import { generateImageLoader } from '../transformer/transforms/image-loader-gen.js';
 import { formatTransformReport } from '../transformer/report.js';
 import { runDeployPipeline } from '../orchestrator/index.js';
+import { ensureCleanTree } from '../orchestrator/git-branch.js';
 
 export function registerGoCommand(program: Command): void {
   program
@@ -32,6 +33,11 @@ export function registerGoCommand(program: Command): void {
     .action(async (projectDir: string, cmdOpts: { workerName?: string; subdomain?: string; skipDeploy?: boolean }) => {
       const opts = program.opts<CliOptions>();
       const resolvedDir = path.resolve(projectDir);
+
+      // Step 0: Ensure clean tree before making any changes
+      if (!cmdOpts.skipDeploy) {
+        await ensureCleanTree(resolvedDir);
+      }
 
       // Step 1: Analyze
       const model = await analyze(resolvedDir, { verbose: opts.verbose });

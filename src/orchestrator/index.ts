@@ -16,11 +16,7 @@ import {
   resolveZone,
   isDomainConfigAvailable,
 } from './infra/domain-configurator.js';
-import {
-  ensureCleanTree,
-  createMigrationBranch,
-  commitChanges,
-} from './git-branch.js';
+import { createMigrationBranch, commitChanges } from './git-branch.js';
 
 interface PipelineOptions {
   projectDir: string;
@@ -33,11 +29,6 @@ export async function runDeployPipeline(
 ): Promise<DeployResult> {
   const { projectDir, workerName, subdomain } = options;
   const dbName = workerName + '-db';
-
-  // ── Preconditions ──────────────────────────────────────────────────
-
-  // Step 0: Ensure clean git tree before making any changes
-  await ensureCleanTree(projectDir);
 
   // ── Phase A: File Generation ──────────────────────────────────────
 
