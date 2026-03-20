@@ -43,10 +43,8 @@ export async function runSyncEnable(opts: {
     );
   }
 
-  const fullWorkerName = `v2cf-sync-${opts.workerName}`;
-
-  // Deploy webhook Worker
-  const workerResult = await deployWebhookWorker(fullWorkerName, opts.projectDir, {
+  // Deploy webhook Worker (deployer applies v2cf-sync- prefix internally)
+  const workerResult = await deployWebhookWorker(opts.workerName, opts.projectDir, {
     CLOUDFLARE_API_TOKEN: process.env.CLOUDFLARE_API_TOKEN || '',
     CLOUDFLARE_ACCOUNT_ID: opts.accountId,
     WORKER_NAME: opts.workerName,
@@ -58,9 +56,12 @@ export async function runSyncEnable(opts: {
     teamId: opts.vercelTeamId,
   });
 
+  // The deployer applies v2cf-sync- prefix, so derive the full name here too
+  const deployedWorkerName = `v2cf-sync-${opts.workerName}`;
+
   // Push webhook secret to Worker via wrangler secret put
   try {
-    await execa('npx', ['wrangler', 'secret', 'put', 'VERCEL_WEBHOOK_SECRET', '--name', fullWorkerName], {
+    await execa('npx', ['wrangler', 'secret', 'put', 'VERCEL_WEBHOOK_SECRET', '--name', deployedWorkerName], {
       cwd: opts.projectDir,
       input: webhook.secret,
       stdio: 'pipe',
@@ -75,7 +76,7 @@ export async function runSyncEnable(opts: {
     vercelWebhookId: webhook.id,
     vercelWebhookSecret: webhook.secret,
     webhookWorkerUrl: workerResult.url,
-    webhookWorkerName: fullWorkerName,
+    webhookWorkerName: deployedWorkerName,
     vercelProjectId: opts.vercelProjectId,
     vercelTeamId: opts.vercelTeamId,
     rebuildMethod: 'worker',

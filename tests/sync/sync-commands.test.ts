@@ -99,7 +99,7 @@ describe('sync enable', () => {
     });
 
     expect(deployWebhookWorker).toHaveBeenCalledWith(
-      'v2cf-sync-test',
+      'test',
       tmpDir,
       expect.objectContaining({
         CLOUDFLARE_API_TOKEN: expect.any(String),

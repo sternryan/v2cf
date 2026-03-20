@@ -78,9 +78,8 @@ export async function deleteWebhookWorker(
   workerName: string,
   projectDir: string
 ): Promise<void> {
-  const fullWorkerName = `v2cf-sync-${workerName}`;
-
-  await execa('npx', ['wrangler', 'delete', '--name', fullWorkerName, '--force'], {
+  // workerName is the full name (e.g., v2cf-sync-stripped) from stored state
+  await execa('npx', ['wrangler', 'delete', '--name', workerName, '--force'], {
     cwd: projectDir,
     stdio: 'pipe',
   });

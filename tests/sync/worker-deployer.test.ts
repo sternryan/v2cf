@@ -160,14 +160,15 @@ describe('deployWebhookWorker', () => {
 });
 
 describe('deleteWebhookWorker', () => {
-  it('runs wrangler delete with correct Worker name', async () => {
+  it('runs wrangler delete with the full worker name as-is (no prefix added)', async () => {
     vi.mocked(execa).mockResolvedValue({
       stdout: 'Deleted',
       stderr: '',
       exitCode: 0,
     } as never);
 
-    await deleteWebhookWorker('my-worker', '/some/dir');
+    // Caller passes the full name from stored state
+    await deleteWebhookWorker('v2cf-sync-my-worker', '/some/dir');
 
     expect(execa).toHaveBeenCalledWith(
       'npx',
