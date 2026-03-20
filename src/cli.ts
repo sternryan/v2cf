@@ -2,6 +2,7 @@ import { Command } from 'commander';
 import { registerAnalyzeCommand } from './commands/analyze.js';
 import { registerDeployCommand } from './commands/deploy.js';
 import { registerGoCommand } from './commands/go.js';
+import { registerReplayCommand } from './commands/replay.js';
 import { registerSyncCommand } from './commands/sync.js';
 import { registerTransformCommand } from './commands/transform.js';
 
@@ -19,6 +20,7 @@ registerAnalyzeCommand(program);
 registerTransformCommand(program);
 registerDeployCommand(program);
 registerGoCommand(program);
+registerReplayCommand(program);
 registerSyncCommand(program);
 
 program.parse();

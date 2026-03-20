@@ -33,7 +33,8 @@ export function registerGoCommand(program: Command): void {
     )
     .option('--skip-deploy', 'Run analyze and transform only, skip deployment')
     .option('--skip-sync', 'Skip auto-sync setup after deployment')
-    .action(async (projectDir: string, cmdOpts: { workerName?: string; subdomain?: string; skipDeploy?: boolean; skipSync?: boolean }) => {
+    .option('--skip-replay', 'Skip replay validation step')
+    .action(async (projectDir: string, cmdOpts: { workerName?: string; subdomain?: string; skipDeploy?: boolean; skipSync?: boolean; skipReplay?: boolean }) => {
       const opts = program.opts<CliOptions>();
       const resolvedDir = path.resolve(projectDir);
 
@@ -128,6 +129,44 @@ export function registerGoCommand(program: Command): void {
                 'You can set up sync later with `v2cf sync enable`'
               );
             }
+          }
+        }
+
+        // Step 5: Replay Validation (optional)
+        if (!cmdOpts.skipReplay) {
+          console.log('\n--- Step 5: Replay Validation ---\n');
+          try {
+            const sessionsDir = path.join(resolvedDir, '.v2cf', 'sessions');
+            const fs = await import('node:fs');
+            if (fs.existsSync(sessionsDir) && fs.readdirSync(sessionsDir).some((f: string) => f.endsWith('.json'))) {
+              console.log(
+                chalk.cyan('Captured sessions found.') +
+                  ' Run `v2cf replay run ' + projectDir + ' --target <cloudflare-url>` to compare Vercel vs Cloudflare behavior.'
+              );
+            } else {
+              console.log(
+                'No captured sessions found. To validate behavioral parity:'
+              );
+              console.log(
+                '  1. Run `v2cf replay capture ' + projectDir + '` to generate a recorder script'
+              );
+              console.log(
+                '  2. Paste the script into your Vercel site\'s <head> and interact with it'
+              );
+              console.log(
+                '  3. Save the session data, then run `v2cf replay run ' + projectDir + ' --target <cloudflare-url>`'
+              );
+            }
+          } catch (err) {
+            console.log(
+              chalk.yellow(
+                'Replay check failed (non-fatal): ' +
+                  (err instanceof Error ? err.message : String(err))
+              )
+            );
+            console.log(
+              'You can run replay validation later with `v2cf replay`'
+            );
           }
         }
       } else {
