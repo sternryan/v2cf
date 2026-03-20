@@ -47,11 +47,12 @@ describe('WranglerRunner', () => {
     it('parses database UUID from wrangler d1 create output', async () => {
       mockedExeca.mockResolvedValueOnce({
         stdout:
-          "✅ Successfully created DB 'my-db'\n\n" +
-          '[[d1_databases]]\n' +
-          'binding = "DB"\n' +
-          'database_name = "my-db"\n' +
-          'database_id = "a1b2c3d4-e5f6-7890-abcd-ef1234567890"',
+          "✅ Successfully created DB 'my-db' in region WNAM\n\n" +
+          '{\n  "d1_databases": [\n    {\n' +
+          '      "binding": "my_db",\n' +
+          '      "database_name": "my-db",\n' +
+          '      "database_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"\n' +
+          '    }\n  ]\n}',
         stderr: '',
       } as any);
 

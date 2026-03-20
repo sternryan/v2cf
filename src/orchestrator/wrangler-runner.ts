@@ -43,10 +43,9 @@ export class WranglerRunner {
       ['wrangler', 'd1', 'create', name],
       { ...this.execaOptions, stdio: 'pipe' }
     );
-    // wrangler d1 create outputs: Created D1 database 'name'
-    // followed by a toml block: database_id = "uuid"
+    // wrangler d1 create outputs database_id in either TOML or JSON format
     const uuidMatch = result.stdout.match(
-      /database_id\s*=\s*"([a-f0-9-]+)"/
+      /database_id["\s:=]+["']?([a-f0-9-]{36})["']?/
     );
     if (!uuidMatch) {
       throw new Error(
