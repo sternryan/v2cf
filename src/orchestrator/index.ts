@@ -129,7 +129,10 @@ export async function runDeployPipeline(
 
   // Step 4: Install new dependencies
   consola.start('Installing dependencies...');
-  await execa('npm', ['install'], { cwd: projectDir, stdio: 'inherit' });
+  await execa('npm', ['install', '--legacy-peer-deps'], {
+    cwd: projectDir,
+    stdio: 'inherit',
+  });
   consola.success('Dependencies installed');
 
   // Step 5: Create git branch and commit
