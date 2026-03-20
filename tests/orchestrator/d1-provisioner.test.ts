@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type Cloudflare from 'cloudflare';
 import { WranglerRunner } from '../../src/orchestrator/wrangler-runner.js';
 import {
   createD1Database,
@@ -8,24 +7,17 @@ import {
 
 describe('d1-provisioner', () => {
   describe('createD1Database', () => {
-    it('calls client.d1.database.create with account_id and name, returns uuid and name', async () => {
-      const mockClient = {
-        d1: {
-          database: {
-            create: vi.fn().mockResolvedValue({
-              uuid: 'db-uuid-123',
-              name: 'my-worker-db',
-            }),
-          },
-        },
-      } as unknown as Cloudflare;
+    it('calls runner.d1Create with name and returns uuid and name', async () => {
+      const mockRunner = {
+        d1Create: vi.fn().mockResolvedValue({
+          uuid: 'db-uuid-123',
+          name: 'my-worker-db',
+        }),
+      } as unknown as WranglerRunner;
 
-      const result = await createD1Database(mockClient, 'acc-123', 'my-worker-db');
+      const result = await createD1Database(mockRunner, 'my-worker-db');
 
-      expect(mockClient.d1.database.create).toHaveBeenCalledWith({
-        account_id: 'acc-123',
-        name: 'my-worker-db',
-      });
+      expect(mockRunner.d1Create).toHaveBeenCalledWith('my-worker-db');
       expect(result).toEqual({ uuid: 'db-uuid-123', name: 'my-worker-db' });
     });
   });

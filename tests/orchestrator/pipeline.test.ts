@@ -1,18 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import fs from 'fs';
-import path from 'path';
-
-// Mock all dependencies
-vi.mock('cloudflare', () => {
-  class MockCloudflare {
-    accounts = { list: vi.fn() };
-    d1 = { database: { create: vi.fn() } };
-    zones = { list: vi.fn() };
-    workers = { domains: { update: vi.fn() } };
-    constructor(public opts: Record<string, unknown>) {}
-  }
-  return { default: MockCloudflare };
-});
 
 vi.mock('execa', () => ({
   execa: vi.fn().mockResolvedValue({ stdout: '', stderr: '' }),
@@ -46,6 +33,7 @@ vi.mock('../../src/orchestrator/infra/deployer.js', () => ({
 vi.mock('../../src/orchestrator/infra/domain-configurator.js', () => ({
   resolveZone: vi.fn(),
   configureDomain: vi.fn(),
+  isDomainConfigAvailable: vi.fn(),
 }));
 
 vi.mock('../../src/orchestrator/git-branch.js', () => ({
@@ -53,15 +41,10 @@ vi.mock('../../src/orchestrator/git-branch.js', () => ({
   commitChanges: vi.fn(),
 }));
 
-vi.mock('../../src/orchestrator/cloudflare-client.js', () => ({
-  getCloudflareClient: vi.fn(),
-  getAccountId: vi.fn(),
-  resetClient: vi.fn(),
-}));
-
 vi.mock('../../src/orchestrator/wrangler-runner.js', () => {
   class MockWranglerRunner {
     constructor(public options: Record<string, unknown>) {}
+    getAccountId = vi.fn().mockResolvedValue('acc-123');
   }
   return { WranglerRunner: MockWranglerRunner };
 });
@@ -87,9 +70,8 @@ import { runDeployPipeline } from '../../src/orchestrator/index.js';
 import { createD1Database, runMigration } from '../../src/orchestrator/infra/d1-provisioner.js';
 import { pushSecrets } from '../../src/orchestrator/infra/secret-pusher.js';
 import { buildAndDeploy } from '../../src/orchestrator/infra/deployer.js';
-import { resolveZone, configureDomain } from '../../src/orchestrator/infra/domain-configurator.js';
+import { resolveZone, configureDomain, isDomainConfigAvailable } from '../../src/orchestrator/infra/domain-configurator.js';
 import { createMigrationBranch, commitChanges } from '../../src/orchestrator/git-branch.js';
-import { getCloudflareClient, getAccountId } from '../../src/orchestrator/cloudflare-client.js';
 import { generateOpenNextConfig } from '../../src/orchestrator/config-gen/opennext-config.js';
 import { generateWranglerConfig } from '../../src/orchestrator/config-gen/wrangler-config.js';
 import { generatePackageScriptUpdates } from '../../src/orchestrator/config-gen/package-scripts.js';
@@ -105,8 +87,6 @@ describe('deployment pipeline orchestrator', () => {
     vi.clearAllMocks();
 
     // Default mock setup
-    vi.mocked(getCloudflareClient).mockReturnValue({} as any);
-    vi.mocked(getAccountId).mockResolvedValue('acc-123');
     vi.mocked(createD1Database).mockResolvedValue({
       uuid: 'db-uuid-456',
       name: 'my-worker-db',
@@ -127,6 +107,7 @@ describe('deployment pipeline orchestrator', () => {
     vi.mocked(createMigrationBranch).mockResolvedValue('v2cf/migrate');
     vi.mocked(commitChanges).mockResolvedValue(undefined);
     vi.mocked(runMigration).mockResolvedValue(undefined);
+    vi.mocked(isDomainConfigAvailable).mockReturnValue(true);
     vi.mocked(resolveZone).mockResolvedValue({
       zoneId: 'zone-abc',
       zoneName: 'quartermint.com',
@@ -225,6 +206,22 @@ describe('deployment pipeline orchestrator', () => {
     expect(configureDomain).not.toHaveBeenCalled();
   });
 
+  it('skips domain config gracefully when CLOUDFLARE_API_TOKEN not set', async () => {
+    vi.mocked(fs.existsSync).mockReturnValue(false);
+    vi.mocked(isDomainConfigAvailable).mockReturnValue(false);
+
+    const result = await runDeployPipeline({
+      projectDir,
+      workerName,
+      subdomain: 'cf.quartermint.com',
+    });
+
+    expect(resolveZone).not.toHaveBeenCalled();
+    expect(configureDomain).not.toHaveBeenCalled();
+    expect(result.customDomain).toBeUndefined();
+    expect(result.success).toBe(true);
+  });
+
   it('creates D1 BEFORE generating wrangler.jsonc (so real database_id is used)', async () => {
     let d1CreatedBeforeWrangler = false;
     let d1Created = false;
@@ -274,7 +271,6 @@ describe('deployment pipeline orchestrator', () => {
 
     await runDeployPipeline({ projectDir, workerName });
 
-    // Files written before git branch
     const lastWrite = callOrder.lastIndexOf('write-file');
     const branchIdx = callOrder.indexOf('git-branch');
     const commitIdx = callOrder.indexOf('git-commit');

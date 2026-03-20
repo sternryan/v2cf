@@ -3,7 +3,6 @@ import path from 'path';
 import { execa } from 'execa';
 import consola from 'consola';
 import type { DeployResult } from './types.js';
-import { getCloudflareClient, getAccountId } from './cloudflare-client.js';
 import { WranglerRunner } from './wrangler-runner.js';
 import { generateOpenNextConfig } from './config-gen/opennext-config.js';
 import { generateWranglerConfig } from './config-gen/wrangler-config.js';
@@ -12,7 +11,11 @@ import { mapEnvToSecrets } from './config-gen/env-mapper.js';
 import { createD1Database, runMigration } from './infra/d1-provisioner.js';
 import { pushSecrets } from './infra/secret-pusher.js';
 import { buildAndDeploy } from './infra/deployer.js';
-import { configureDomain, resolveZone } from './infra/domain-configurator.js';
+import {
+  configureDomain,
+  resolveZone,
+  isDomainConfigAvailable,
+} from './infra/domain-configurator.js';
 import { createMigrationBranch, commitChanges } from './git-branch.js';
 
 interface PipelineOptions {
@@ -29,17 +32,17 @@ export async function runDeployPipeline(
 
   // ── Phase A: File Generation ──────────────────────────────────────
 
-  // Step 1: Validate preconditions
+  // Step 1: Validate wrangler auth
   consola.start('Validating Cloudflare credentials...');
-  const client = getCloudflareClient();
-  const accountId = await getAccountId(client);
+  const runner = new WranglerRunner({ cwd: projectDir });
+  const accountId = await runner.getAccountId();
   consola.success(`Authenticated to account ${accountId}`);
 
   // Step 2: Create D1 database (need real ID for wrangler.jsonc)
   consola.start(`Creating D1 database "${dbName}"...`);
   let d1Result: { uuid: string; name: string };
   try {
-    d1Result = await createD1Database(client, accountId, dbName);
+    d1Result = await createD1Database(runner, dbName);
   } catch (err) {
     throw new Error(
       `D1 database creation failed: ${err instanceof Error ? err.message : String(err)}`
@@ -140,8 +143,6 @@ export async function runDeployPipeline(
 
   // ── Phase B: Infrastructure Provisioning ──────────────────────────
 
-  const runner = new WranglerRunner({ cwd: projectDir });
-
   // Step 6: Run migration SQL if exists
   const migrationPath = path.join(
     projectDir,
@@ -167,21 +168,28 @@ export async function runDeployPipeline(
     consola.success(`${secretsCount} secrets pushed`);
   }
 
-  // Step 9: Configure custom domain
+  // Step 9: Configure custom domain (requires CLOUDFLARE_API_TOKEN)
   let customDomain: string | undefined;
   if (subdomain) {
-    consola.start(`Configuring custom domain: ${subdomain}...`);
-    const zone = await resolveZone(client, accountId, subdomain);
-    await configureDomain(
-      client,
-      accountId,
-      subdomain,
-      workerName,
-      zone.zoneId,
-      zone.zoneName
-    );
-    customDomain = subdomain;
-    consola.success(`Custom domain configured: ${subdomain}`);
+    if (!isDomainConfigAvailable()) {
+      consola.warn(
+        `Custom domain skipped — CLOUDFLARE_API_TOKEN not set.\n` +
+          `Your app is live at https://${workerName}.workers.dev\n` +
+          `To add a custom domain later, set CLOUDFLARE_API_TOKEN and re-run with --subdomain.`
+      );
+    } else {
+      consola.start(`Configuring custom domain: ${subdomain}...`);
+      const zone = await resolveZone(accountId, subdomain);
+      await configureDomain(
+        accountId,
+        subdomain,
+        workerName,
+        zone.zoneId,
+        zone.zoneName
+      );
+      customDomain = subdomain;
+      consola.success(`Custom domain configured: ${subdomain}`);
+    }
   }
 
   // Step 10: Return result

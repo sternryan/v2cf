@@ -1,16 +1,10 @@
-import type Cloudflare from 'cloudflare';
 import type { WranglerRunner } from '../wrangler-runner.js';
 
 export async function createD1Database(
-  client: Cloudflare,
-  accountId: string,
+  runner: WranglerRunner,
   name: string
 ): Promise<{ uuid: string; name: string }> {
-  const db = await client.d1.database.create({
-    account_id: accountId,
-    name,
-  });
-  return { uuid: db.uuid!, name: db.name! };
+  return runner.d1Create(name);
 }
 
 export async function runMigration(
