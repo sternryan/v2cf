@@ -28,7 +28,7 @@ export const d1kv = {
     const row = await db
       .prepare("SELECT value, expires_at FROM kv_store WHERE key = ?")
       .bind(key)
-      .first<{ value: string; expires_at: number | null }>();
+      .first();
     if (!row) return null;
     // Lazy TTL: check expires_at and return null + delete if expired
     if (row.expires_at && row.expires_at < Date.now() / 1000) {
@@ -71,7 +71,7 @@ export const d1kv = {
     const row = await db
       .prepare("SELECT value FROM kv_store WHERE key = ?")
       .bind(key)
-      .first<{ value: string }>();
+      .first();
     return parseInt(row!.value, 10);
   },
 
@@ -89,7 +89,7 @@ export const d1kv = {
     const count = await db
       .prepare("SELECT COUNT(*) as cnt FROM kv_list WHERE key = ?")
       .bind(key)
-      .first<{ cnt: number }>();
+      .first();
     return count!.cnt;
   },
 
@@ -103,7 +103,7 @@ export const d1kv = {
         "SELECT value FROM kv_list WHERE key = ? ORDER BY position DESC LIMIT ? OFFSET ?"
       )
       .bind(key, limit, start)
-      .all<{ value: string }>();
+      .all();
     return rows.results.map((r) => JSON.parse(r.value));
   },
 
