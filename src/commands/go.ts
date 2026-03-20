@@ -13,6 +13,8 @@ import { generateImageLoader } from '../transformer/transforms/image-loader-gen.
 import { formatTransformReport } from '../transformer/report.js';
 import { runDeployPipeline } from '../orchestrator/index.js';
 import { ensureCleanTree } from '../orchestrator/git-branch.js';
+import { runSyncEnable } from './sync.js';
+import { WranglerRunner } from '../orchestrator/wrangler-runner.js';
 
 export function registerGoCommand(program: Command): void {
   program
@@ -30,7 +32,8 @@ export function registerGoCommand(program: Command): void {
       'Custom subdomain to configure (e.g., cf.quartermint.com)'
     )
     .option('--skip-deploy', 'Run analyze and transform only, skip deployment')
-    .action(async (projectDir: string, cmdOpts: { workerName?: string; subdomain?: string; skipDeploy?: boolean }) => {
+    .option('--skip-sync', 'Skip auto-sync setup after deployment')
+    .action(async (projectDir: string, cmdOpts: { workerName?: string; subdomain?: string; skipDeploy?: boolean; skipSync?: boolean }) => {
       const opts = program.opts<CliOptions>();
       const resolvedDir = path.resolve(projectDir);
 
@@ -92,6 +95,41 @@ export function registerGoCommand(program: Command): void {
         }
         console.log('D1 Database: ' + result.d1DatabaseId);
         console.log('Secrets pushed: ' + result.secretsCount);
+        // Step 4: Enable Auto-Sync
+        if (!cmdOpts.skipSync) {
+          if (!process.env.VERCEL_TOKEN) {
+            console.log(
+              chalk.cyan('\nSync skipped') +
+                ' -- set VERCEL_TOKEN to enable auto-sync. See: https://vercel.com/account/tokens'
+            );
+          } else {
+            console.log('\n--- Step 4: Enable Auto-Sync ---\n');
+            try {
+              const runner = new WranglerRunner({ cwd: resolvedDir });
+              const accountId = await runner.getAccountId();
+              const syncResult = await runSyncEnable({
+                projectDir: resolvedDir,
+                workerName,
+                accountId,
+              });
+              console.log(
+                chalk.green('\u2714') +
+                  ' Auto-sync enabled! Cloudflare will rebuild on every Vercel deploy.'
+              );
+              console.log('Sync Worker URL: ' + syncResult.webhookWorkerUrl);
+            } catch (err) {
+              console.log(
+                chalk.yellow(
+                  'Sync setup failed (non-fatal): ' +
+                    (err instanceof Error ? err.message : String(err))
+                )
+              );
+              console.log(
+                'You can set up sync later with `v2cf sync enable`'
+              );
+            }
+          }
+        }
       } else {
         console.log('\nDeploy skipped (--skip-deploy flag).\n');
       }
