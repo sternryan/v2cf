@@ -8,6 +8,8 @@ v2cf analyzes your Vercel-specific code patterns, applies AST-level transforms, 
 npx v2cf go ./my-nextjs-app --worker-name my-app-cf
 ```
 
+> v2cf is published to npm. Run it directly with `npx v2cf <command>` without installing globally.
+
 ## What it does
 
 1. **Analyze** -- Scans your codebase for Vercel-specific patterns (7 pattern types detected)
