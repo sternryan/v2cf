@@ -130,7 +130,7 @@ src/
 ## Development
 
 ```bash
-git clone https://github.com/quartermint/v2cf.git
+git clone https://github.com/sternryan/v2cf.git
 cd v2cf
 npm install
 npm test          # 395 tests
